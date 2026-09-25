@@ -2337,7 +2337,17 @@ describe("scripts/lib/ci-node-test-plan.mts", () => {
       .flatMap((shard) => shard.includePatterns ?? [])
       .toSorted((a, b) => a.localeCompare(b));
 
-    expect(bundled.length - gatewayStripes.length).toBeLessThan(base.length - 1);
+    const infraShards = base.filter(
+      (shard) =>
+        shard.configs.length === 1 && shard.configs[0] === "test/vitest/vitest.infra.config.ts",
+    );
+    const infraBundles = bundled.filter((shard) => shard.shardName.startsWith("bundle-infra-"));
+    // Oversized source shards must split before packing can save any jobs.
+    const unbundledInfraJobs = infraShards.reduce(
+      (count, shard) => count + Math.ceil((shard.includePatterns?.length ?? 0) / 64),
+      0,
+    );
+    expect(infraBundles.length).toBeLessThan(unbundledInfraJobs);
     expect(new Set(bundled.map((shard) => shard.checkName)).size).toBe(bundled.length);
     expect(bundledPatterns).toEqual(basePatterns);
     expect(
